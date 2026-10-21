@@ -1,3 +1,4 @@
+
 name: Build LBank Scanner APK
 
 on:
@@ -6,6 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -14,6 +16,32 @@ jobs:
         run: |
           unzip -o LBankScannerAndroid_project.zip
           test -f LBankScannerAndroid/app/build.gradle.kts
+
+      - name: Fix Android NDK ABI filters
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("LBankScannerAndroid/app/build.gradle.kts")
+          s = p.read_text()
+
+          if "abiFilters" not in s:
+              needle = "    defaultConfig {"
+
+              if needle not in s:
+                  raise SystemExit(
+                      "ERROR: defaultConfig block not found"
+                  )
+
+              replacement = '''    defaultConfig {
+                  ndk {
+                      abiFilters += listOf("arm64-v8a", "x86_64")
+                  }'''
+
+              s = s.replace(needle, replacement, 1)
+              p.write_text(s)
+
+          print("NDK ABI filters checked.")
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -37,4 +65,5 @@ jobs:
           path: LBankScannerAndroid/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
+          
           
