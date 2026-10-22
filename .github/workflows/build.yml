@@ -1,69 +1,41 @@
-
 name: Build LBank Scanner APK
 
 on:
-  workflow_dispatch:
+workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+build:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
 
-      - name: Extract Android project
-        run: |
-          unzip -o LBankScannerAndroid_project.zip
-          test -f LBankScannerAndroid/app/build.gradle.kts
+  - name: Extract Android project
+    run: |
+      unzip -o LBankScannerAndroid_project_fixed.zip
+      test -f LBankScannerAndroid/app/build.gradle.kts
+      grep -A 3 'defaultConfig {' LBankScannerAndroid/app/build.gradle.kts
 
-      - name: Fix Android NDK ABI filters
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
+  - name: Set up Java
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: '17'
 
-          p = Path("LBankScannerAndroid/app/build.gradle.kts")
-          s = p.read_text()
+  - name: Set up Gradle
+    uses: gradle/actions/setup-gradle@v4
+    with:
+      gradle-version: '8.11.1'
 
-          if "abiFilters" not in s:
-              needle = "    defaultConfig {"
+  - name: Build APK
+    working-directory: LBankScannerAndroid
+    run: gradle assembleDebug --no-daemon
 
-              if needle not in s:
-                  raise SystemExit(
-                      "ERROR: defaultConfig block not found"
-                  )
-
-              replacement = '''    defaultConfig {
-                  ndk {
-                      abiFilters += listOf("arm64-v8a", "x86_64")
-                  }'''
-
-              s = s.replace(needle, replacement, 1)
-              p.write_text(s)
-
-          print("NDK ABI filters checked.")
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.11.1'
-
-      - name: Build APK
-        working-directory: LBankScannerAndroid
-        run: gradle assembleDebug --no-daemon
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: LBankScanner-debug-APK
-          path: LBankScannerAndroid/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 7
-          
-          
+  - name: Upload APK
+    uses: actions/upload-artifact@v4
+    with:
+      name: LBankScanner-debug-APK
+      path: LBankScannerAndroid/app/build/outputs/apk/debug/app-debug.apk
+      if-no-files-found: error
+      retention-days: 7
